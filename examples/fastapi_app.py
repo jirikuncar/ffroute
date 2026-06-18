@@ -5,6 +5,11 @@
 #     "fastapi>=0.115",
 #     "uvicorn>=0.30",
 # ]
+#
+# # Local-checkout override (uv extension): resolves ffroute from this repo
+# # instead of PyPI. Remove this block once ffroute is published on PyPI.
+# [tool.uv.sources]
+# ffroute = { path = "..", editable = true }
 # ///
 """Minimal FastAPI app whose underlying Starlette router is swapped for ffroute.
 

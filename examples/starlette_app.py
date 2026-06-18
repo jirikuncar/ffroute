@@ -4,6 +4,11 @@
 #     "ffroute[starlette]",
 #     "uvicorn>=0.30",
 # ]
+#
+# # Local-checkout override (uv extension): resolves ffroute from this repo
+# # instead of PyPI. Remove this block once ffroute is published on PyPI.
+# [tool.uv.sources]
+# ffroute = { path = "..", editable = true }
 # ///
 """Minimal Starlette app whose router is replaced with ffroute-backed narrowing.
 
