@@ -1,9 +1,23 @@
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#     "ffroute[starlette]",
+#     "uvicorn>=0.30",
+# ]
+# ///
 """Minimal Starlette app whose router is replaced with ffroute-backed narrowing.
 
-Run:
+Run directly — uv assembles a fresh environment from the PEP 723 metadata
+above (no project setup needed)::
+
+    uv run examples/starlette_app.py
+
+Or, from inside this repo (uses the local editable ffroute install)::
+
     uv run uvicorn examples.starlette_app:app --reload
 
 Then::
+
     curl http://localhost:8000/users/42
     curl http://localhost:8000/items/abc
 """
@@ -37,3 +51,9 @@ routes = [
 
 app = Starlette(routes=routes)
 speedup(app)  # swap app.router for FFRouter — that's it.
+
+
+if __name__ == '__main__':
+    import uvicorn
+
+    uvicorn.run(app, host='127.0.0.1', port=8000)
