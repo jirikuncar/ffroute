@@ -292,6 +292,56 @@ def test_include_router_and_top_level_can_overlap():
     assert _probe(app, '/missing') == 404
 
 
+def test_speedup_actually_activates_trie_dispatch():
+    """Regression for the middleware_stack dormancy bug.
+
+    ``Router.__init__`` caches ``middleware_stack = self.app`` as a bound
+    method at construction time. A plain ``__class__`` swap leaves that
+    bound method pointing at the *old* ``Router.app`` function, so ASGI
+    dispatch never enters ``FFRouter.app`` and the trie sits unused. The
+    fix in ``_swap_router_class`` rebinds ``middleware_stack`` to the new
+    ``router.app``.
+
+    Without the fix this test fails: the spy's ``match_all`` is never
+    called because dispatch bypasses ``FFRouter.app`` entirely.
+    """
+    app = Starlette(routes=[Route('/x', _ok)])
+    ffroute.speedup(app)
+
+    real = app.router._ffroute
+    calls: list[str] = []
+
+    class SpyMatcher:
+        def match_all(self, path: str) -> list[int]:
+            calls.append(path)
+            return real.match_all(path)
+
+    app.router._ffroute = SpyMatcher()
+
+    assert _probe(app, '/x') == 200
+    assert calls == ['/x'], f'trie was never consulted; calls={calls!r}'
+
+
+def test_speedup_preserves_router_level_middleware():
+    """If ``router.middleware_stack`` has been wrapped with custom middleware
+    before ``speedup`` is called, the rebind logic must skip — otherwise
+    we'd silently drop that middleware. The class swap itself still happens
+    (so future child routers and ``_rebuild_index`` updates work)."""
+    app = Starlette(routes=[Route('/x', _ok)])
+
+    # Simulate router-level middleware: a callable that isn't a bound method
+    # of the router (so __self__ isn't `router`, so our rebind guard skips).
+    sentinel = object()
+    app.router.middleware_stack = sentinel  # type: ignore[assignment]
+
+    ffroute.speedup(app)
+
+    assert isinstance(app.router, ffroute.FFRouter)
+    assert app.router.middleware_stack is sentinel, (
+        'router-level middleware was silently replaced by the speedup rebind'
+    )
+
+
 def test_non_http_scope_falls_through_to_super():
     # FFRouter.app must short-circuit on non-http/websocket scopes (e.g.
     # lifespan) and defer to the base Router so startup/shutdown events fire.

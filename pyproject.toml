@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "ffroute"
-version = "0.1.1"
+version = "0.1.2"
 description = "Starlette-compatible URL route matcher as a native Python extension (~29× faster than Starlette's linear regex scan)."
 readme = "README.md"
 requires-python = ">=3.10"

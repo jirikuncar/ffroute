@@ -90,14 +90,31 @@ class FFRouter(Router):
 
 
 def _swap_router_class(router: Router) -> None:
-    """Replace ``router.__class__`` with an FFRouter mixin (idempotent)."""
+    """Replace ``router.__class__`` with an FFRouter mixin (idempotent), then
+    rebind ``middleware_stack`` so the swap actually takes effect.
+
+    ``Router.__init__`` does ``self.middleware_stack = self.app`` — a bound
+    method captured at construction time. Plain ``router.__class__ = FFRouter``
+    swaps the class but leaves the cached bound method pointing at the
+    original ``Router.app`` function, so dispatch silently bypasses the trie
+    (the swap is dormant). The rebind below re-resolves ``router.app`` via
+    the new class so dispatch flows through ``FFRouter.app``.
+
+    Guard: only rebind when ``middleware_stack`` is still the bare bound
+    ``self.app`` — i.e. ``__self__`` points back at the router. If anything
+    has wrapped it with middleware (router-level middleware stack), re-binding
+    would silently drop that middleware. In that case the swap stays dormant
+    *for that router*; the user keeps their middleware but doesn't get the
+    trie fast-path until they call ``speedup`` before wrapping.
+    """
     cls = type(router)
-    if issubclass(cls, FFRouter):
-        router._rebuild_index()
-        return
-    new_cls = FFRouter if cls is Router else type(f'FF{cls.__name__}', (FFRouter, cls), {})
-    router.__class__ = new_cls
+    if not issubclass(cls, FFRouter):
+        new_cls = FFRouter if cls is Router else type(f'FF{cls.__name__}', (FFRouter, cls), {})
+        router.__class__ = new_cls
     router._rebuild_index()
+    ms = getattr(router, 'middleware_stack', None)
+    if getattr(ms, '__self__', None) is router:
+        router.middleware_stack = router.app
 
 
 def speedup(app_or_router: Any, *, recursive: bool = True) -> None:
