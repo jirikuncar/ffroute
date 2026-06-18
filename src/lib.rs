@@ -322,6 +322,9 @@ impl Router {
         }
     }
 
+    // Rust function name keeps the trailing underscore because `match` is a
+    // reserved keyword in Rust; PyO3 exposes it as plain `match` to Python.
+    #[pyo3(name = "match")]
     fn match_(&self, path: &str) -> Option<i32> {
         let r = self.trie.match_path(path);
         if r < 0 {

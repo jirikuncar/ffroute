@@ -229,8 +229,8 @@ def benchmark(name: str, patterns: list[str]) -> BenchResult | None:
 
     # Verify correctness ON THE WORKLOADS before timing — every match probe
     # must agree between ffroute and Starlette; every miss must miss both.
-    mismatches = sum(1 for u in matches if ff.match_(u) != sl.match(u))
-    miss_in_ff = sum(1 for u in misses if ff.match_(u) is not None)
+    mismatches = sum(1 for u in matches if ff.match(u) != sl.match(u))
+    miss_in_ff = sum(1 for u in misses if ff.match(u) is not None)
     miss_in_sl = sum(1 for u in misses if sl.match(u) is not None)
     print(
         f'   correctness: {mismatches}/{n_routes} match-probe divergences, '
@@ -238,9 +238,9 @@ def benchmark(name: str, patterns: list[str]) -> BenchResult | None:
     )
 
     # Time both workloads.
-    ff_hit = time_workload(ff.match_, matches)
+    ff_hit = time_workload(ff.match, matches)
     sl_hit = time_workload(sl.match, matches)
-    ff_miss = time_workload(ff.match_, misses)
+    ff_miss = time_workload(ff.match, misses)
     sl_miss = time_workload(sl.match, misses)
 
     def fmt(ns: float) -> str:

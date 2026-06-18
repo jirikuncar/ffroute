@@ -107,11 +107,11 @@ router = ffroute.Router([
     '/static/{file:path}',                 # 3
 ])
 
-router.match_('/users/me')        # -> 0   (first-registered wins)
-router.match_('/users/42')        # -> 1
-router.match_('/items/abc')       # -> 2
-router.match_('/static/a/b.png')  # -> 3
-router.match_('/missing')         # -> None
+router.match('/users/me')        # -> 0   (first-registered wins)
+router.match('/users/42')        # -> 1
+router.match('/items/abc')       # -> 2
+router.match('/static/a/b.png')  # -> 3
+router.match('/missing')         # -> None
 ```
 
 ## API reference
@@ -126,7 +126,7 @@ router.match_('/missing')         # -> None
 
 | method | returns | use case |
 |---|---|---|
-| `match_(path)` | `int \| None` — best (lowest-index) match | single-request dispatch |
+| `match(path)` | `int \| None` — best (lowest-index) match | single-request dispatch |
 | `match_many(paths)` | `list[int]` — `-1` for no match | batch matching |
 | `match_all(path)` | `list[int]` — every candidate, in trie-walk order | candidate narrowing (then run the framework's own per-route check) |
 
@@ -170,7 +170,7 @@ All cases above are covered by `tests/test_ffrouter.py`.
 | `{name:path}` | `.*` | consumes the remainder of the path |
 | compound (e.g. `{user}:disable`, `({n:int})`) | anchored whole-segment regex | mixed literal + param |
 
-**Semantics:** `match_` returns the **minimum registration index** among all
+**Semantics:** `match` returns the **minimum registration index** among all
 patterns that match. This is exactly Starlette's "first-registered wins" rule,
 including the FastAPI footgun where `/x/{id}/` registered before `/x/bulk/`
 makes `GET /x/bulk/` match the param route with `id="bulk"`. Drop-in routers

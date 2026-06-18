@@ -107,7 +107,7 @@ def test_conformance_table(name: str, patterns: list[str], probes: list[str]):
     divergences: list[tuple[str, int | None, int | None]] = []
     for path in probes:
         exp = oracle(path)
-        got = router.match_(path)
+        got = router.match(path)
         if got != exp:
             divergences.append((path, exp, got))
     assert not divergences, f'[{name}] {len(divergences)} divergences vs Starlette: {divergences}'
@@ -189,7 +189,7 @@ def test_fuzz_against_starlette():
         if rng.random() < 0.5:
             path += '/'
         exp = oracle(path)
-        got = router.match_(path)
+        got = router.match(path)
         if got != exp:
             divergences.append((path, exp, got))
             if len(divergences) > 10:
