@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from starlette._utils import get_route_path
 from starlette.routing import Match, Mount, Router
 
 from ._core import Router as _TrieRouter
@@ -62,7 +63,7 @@ class FFRouter(Router):
             await super().app(scope, receive, send)
             return
 
-        path = scope.get('path', '/')
+        path = get_route_path(scope)
         hits = self._ffroute.match_all(path)
         # De-dup + preserve registration order. Mounts/Hosts always considered.
         candidate_route_indices = sorted({self._indexed[h] for h in hits} | set(self._unindexed))

@@ -322,6 +322,40 @@ def test_speedup_actually_activates_trie_dispatch():
     assert calls == ['/x'], f'trie was never consulted; calls={calls!r}'
 
 
+def test_mounted_subapp_trie_sees_root_path_stripped():
+    """Regression: a mounted ``FFRouter`` must feed the trie the path with
+    the mount prefix removed.
+
+    Starlette's ``Mount`` does not rewrite ``scope['path']``; it appends the
+    consumed prefix to ``scope['root_path']`` and leaves ``path`` as the full
+    request path. The trie inside the sub-app is built from *relative* route
+    patterns (e.g. ``/x``), so matching against the raw ``scope['path']``
+    (``/outer/x``) would always miss and silently fall through to the slow
+    ``super().app`` linear scan — the fast-path going dormant inside mounts.
+
+    ``get_route_path(scope)`` strips ``root_path``, so the trie must be
+    consulted with ``/x``, not ``/outer/x``.
+    """
+    inner = Starlette(routes=[Route('/x', _ok)])
+    app = Starlette(routes=[Mount('/outer', app=inner)])
+    ffroute.speedup(app)
+
+    real = inner.router._ffroute
+    calls: list[str] = []
+
+    class SpyMatcher:
+        def match_all(self, path: str) -> list[int]:
+            calls.append(path)
+            return real.match_all(path)
+
+    inner.router._ffroute = SpyMatcher()
+
+    assert _probe(app, '/outer/x') == 200
+    assert calls == ['/x'], (
+        f'mounted trie consulted with un-stripped path; calls={calls!r}'
+    )
+
+
 def test_speedup_preserves_router_level_middleware():
     """If ``router.middleware_stack`` has been wrapped with custom middleware
     before ``speedup`` is called, the rebind logic must skip — otherwise
