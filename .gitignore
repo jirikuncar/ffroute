@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info/
+
+# Virtual environments
+.venv/
+
+# Caches
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Coverage
+.coverage
+.coverage.*
+htmlcov/
+
+# Rust / maturin build artifacts
+target/
+*.so
+*.pyd
+*.dylib
+
+# Worktree scratch
+tmp/
+
+# Benchmark cache (downloaded OpenAPI specs)
+benchmarks/.cache/
+
+# Editor / OS
+.idea/
+.vscode/
+.claude/
+.DS_Store
+*.swp

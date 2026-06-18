@@ -1,0 +1,94 @@
+[build-system]
+requires = ["maturin>=1.7,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "ffroute"
+version = "0.1.0"
+description = "Starlette-compatible URL route matcher as a native Python extension (~29× faster than Starlette's linear regex scan)."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [{ name = "Jiri Kuncar", email = "jiri.kuncar@gmail.com" }]
+keywords = [
+    "starlette",
+    "fastapi",
+    "routing",
+    "router",
+    "url-matching",
+    "pyo3",
+    "rust",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Rust",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+[project.urls]
+Homepage = "https://github.com/jirikuncar/ffroute"
+Repository = "https://github.com/jirikuncar/ffroute"
+Issues = "https://github.com/jirikuncar/ffroute/issues"
+Changelog = "https://github.com/jirikuncar/ffroute/releases"
+
+[project.optional-dependencies]
+starlette = ["starlette>=0.40.0"]
+
+[tool.maturin]
+python-source = "python"
+module-name = "ffroute._core"
+strip = true
+
+[dependency-groups]
+dev = [
+    "maturin>=1.7,<2.0",
+    "prek>=0.2.0",
+    "pytest>=8.0.0",
+    "ruff>=0.8.0",
+    "starlette>=0.40.0",
+]
+examples = [
+    "fastapi>=0.115.0",
+    "uvicorn>=0.30.0",
+]
+benchmarks = [
+    "starlette>=0.40.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["-v"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "SIM", # flake8-simplify
+]
+ignore = [
+    "E501", # line too long (handled by formatter)
+]
+
+[tool.ruff.format]
+quote-style = "single"
+indent-style = "space"
