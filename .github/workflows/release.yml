@@ -17,40 +17,42 @@ jobs:
       matrix:
         include:
           # Linux glibc (manylinux)
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             target: x86_64-unknown-linux-gnu
             manylinux: auto
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             target: aarch64-unknown-linux-gnu
             manylinux: auto
           # Linux musl (musllinux) — Alpine/distroless
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             target: x86_64-unknown-linux-musl
             manylinux: musllinux_1_2
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             target: aarch64-unknown-linux-musl
             manylinux: musllinux_1_2
-          # macOS
-          - os: macos-13
+          # macOS — both targets built on macos-14 (arm64). The x86_64 wheel
+          # is cross-compiled (maturin-action installs the target via rustup).
+          # macos-13 is being phased out by GitHub and was hanging on v0.1.0.
+          - os: macos-14
             target: x86_64-apple-darwin
           - os: macos-14
             target: aarch64-apple-darwin
           # Windows
-          - os: windows-latest
+          - os: windows-2022
             target: x86_64-pc-windows-msvc
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.13'
 
       - name: Build wheels
-        uses: PyO3/maturin-action@v1
+        uses: PyO3/maturin-action@v1.49.3
         with:
           target: ${{ matrix.target }}
           manylinux: ${{ matrix.manylinux || 'auto' }}
@@ -64,14 +66,14 @@ jobs:
 
   build-sdist:
     name: Build sdist
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - name: Build sdist
-        uses: PyO3/maturin-action@v1
+        uses: PyO3/maturin-action@v1.49.3
         with:
           command: sdist
           args: --out dist
@@ -86,7 +88,7 @@ jobs:
     name: Publish to PyPI
     if: github.event_name == 'release' && github.event.action == 'published'
     needs: [build-wheels, build-sdist]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment:
       name: pypi
       url: https://pypi.org/p/ffroute
@@ -103,7 +105,7 @@ jobs:
     name: Publish to TestPyPI
     if: github.event_name == 'workflow_dispatch'
     needs: [build-wheels, build-sdist]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment:
       name: testpypi
       url: https://test.pypi.org/p/ffroute
