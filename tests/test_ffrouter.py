@@ -292,6 +292,111 @@ def test_include_router_and_top_level_can_overlap():
     assert _probe(app, '/missing') == 404
 
 
+# --- FFAPIRouter (static class) -------------------------------------------
+
+
+def test_ffapirouter_is_importable_static_class():
+    """``FFAPIRouter`` is the static class that backs the planned upstream
+    ``FastAPI(router_class=FFAPIRouter)`` proposal — must be a real
+    importable subclass of both ``APIRouter`` and ``FFRouter``."""
+    fastapi = pytest.importorskip('fastapi')
+
+    assert ffroute.FFAPIRouter.__module__ == 'ffroute._fastapi'
+    assert issubclass(ffroute.FFAPIRouter, fastapi.APIRouter)
+    assert issubclass(ffroute.FFAPIRouter, ffroute.FFRouter)
+    # MRO order: our overrides win, APIRouter behavior is preserved.
+    mro_names = [c.__name__ for c in ffroute.FFAPIRouter.__mro__]
+    assert mro_names.index('FFRouter') < mro_names.index('APIRouter')
+
+
+def test_ffapirouter_as_drop_in_via_assignment():
+    """Construct ``FFAPIRouter`` directly and assign it as ``app.router`` —
+    this is the shape that ``FastAPI(router_class=FFAPIRouter)`` will use
+    once the upstream PR lands. Verify end-to-end: parametrized routes,
+    /openapi.json, method-mismatch → 405, include_router."""
+    fastapi = pytest.importorskip('fastapi')
+
+    api = fastapi.APIRouter(prefix='/api/v1')
+
+    @api.get('/items/{item_id}')
+    def get_item(item_id: int):
+        return {'item_id': item_id}
+
+    # Build the app, then replace the auto-created APIRouter with an
+    # FFAPIRouter pre-loaded with the same routes/config. This is the
+    # forward-compatible shape: same as what FastAPI's __init__ will do
+    # internally once router_class= is accepted.
+    app = fastapi.FastAPI()
+
+    @app.get('/')
+    def root():
+        return {'ok': True}
+
+    @app.get('/users/{user_id}')
+    def get_user(user_id: int):
+        return {'user_id': user_id}
+
+    app.include_router(api)
+
+    # Swap router AFTER routes are registered, preserving them.
+    old_routes = list(app.router.routes)
+    new_router = ffroute.FFAPIRouter()
+    new_router.routes.extend(old_routes)
+    app.router = new_router
+    # FastAPI captures middleware_stack lazily in build_middleware_stack(),
+    # so router replacement before first request is safe.
+    new_router._rebuild_index()
+
+    assert _probe(app, '/') == 200
+    assert _probe(app, '/users/42') == 200
+    assert _probe(app, '/api/v1/items/42') == 200
+    assert _probe(app, '/api/v1/items/42', method='POST') == 405
+    assert _probe(app, '/missing') == 404
+    # /openapi.json must still work — proves APIRouter behavior is intact.
+    assert _probe(app, '/openapi.json') == 200
+
+
+def test_ffapirouter_works_without_speedup_call():
+    """When ``FFAPIRouter`` is the router class from construction time,
+    no ``speedup()`` call and no ``middleware_stack`` rebind are needed —
+    dispatch flows through ``FFAPIRouter.app`` naturally. This is the
+    invariant the upstream ``router_class=`` PR will enable; we prove it
+    holds today by constructing the router as the active class up-front.
+
+    The spy pattern (drop a custom matcher into ``_ffroute``, drive a
+    request, assert the matcher was consulted) is the same regression
+    pattern from ``test_speedup_actually_activates_trie_dispatch`` —
+    here applied to the static-class path, not the swap path."""
+    fastapi = pytest.importorskip('fastapi')
+
+    router = ffroute.FFAPIRouter()
+
+    @router.get('/x')
+    def handler():
+        return {}
+
+    app = fastapi.FastAPI()
+    app.router = router
+    router._rebuild_index()
+
+    # Notably: no ffroute.speedup(app) call. No app.router.__class__ swap.
+    # If FFRouter's app override is actually the active dispatcher (because
+    # the router was constructed as FFAPIRouter from the start), the spy
+    # below sees the call.
+    real = router._ffroute
+    calls: list[str] = []
+
+    class SpyMatcher:
+        def match_all(self, path: str) -> list[int]:
+            calls.append(path)
+            return real.match_all(path) if real is not None else []
+
+    router._ffroute = SpyMatcher()
+
+    assert _probe(app, '/x') == 200
+    assert calls == ['/x'], f'trie was never consulted via the static class path; calls={calls!r}'
+
+
 def test_speedup_actually_activates_trie_dispatch():
     """Regression for the middleware_stack dormancy bug.
 
@@ -351,9 +456,7 @@ def test_mounted_subapp_trie_sees_root_path_stripped():
     inner.router._ffroute = SpyMatcher()
 
     assert _probe(app, '/outer/x') == 200
-    assert calls == ['/x'], (
-        f'mounted trie consulted with un-stripped path; calls={calls!r}'
-    )
+    assert calls == ['/x'], f'mounted trie consulted with un-stripped path; calls={calls!r}'
 
 
 def test_speedup_preserves_router_level_middleware():

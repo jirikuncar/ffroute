@@ -36,7 +36,8 @@ filters), but loses the trie fast-path for those segments.
 
 ```bash
 pip install ffroute               # core (zero Python deps)
-pip install 'ffroute[starlette]'  # with FFRouter — the Starlette/FastAPI drop-in
+pip install 'ffroute[starlette]'  # adds FFRouter (Starlette drop-in)
+pip install 'ffroute[fastapi]'    # adds FFAPIRouter (FastAPI drop-in)
 # or
 uv add ffroute
 ```
@@ -92,6 +93,30 @@ app.router.__class__ = FFRouter
 app.router._rebuild_index()
 ```
 
+### Using FFAPIRouter as a static class
+
+`FFAPIRouter` is a real importable class (`FFRouter` × `APIRouter` mixin)
+that backs `speedup()` for FastAPI apps. You can also construct it
+directly and assign it as `app.router`, which avoids the post-construction
+swap entirely:
+
+```python
+from fastapi import FastAPI
+from ffroute import FFAPIRouter
+
+app = FastAPI()
+# ... register routes via @app.get / include_router ...
+new_router = FFAPIRouter()
+new_router.routes.extend(app.router.routes)
+app.router = new_router
+app.router._rebuild_index()
+```
+
+This is the forward-compatible shape: once Starlette and FastAPI accept a
+`router_class=` keyword at construction time (PR proposal pending), it
+becomes a one-liner: `FastAPI(router_class=FFAPIRouter)`. The static
+class ships in 0.1.3 to make that pitch concrete.
+
 ### Advanced: low-level matcher
 
 For a custom dispatch layer outside Starlette, use the raw trie matcher
@@ -120,6 +145,7 @@ router.match('/missing')         # -> None
 |---|---|---|
 | `ffroute.Router` | — | low-level Rust trie; returns the integer **index** of the matching pattern |
 | `ffroute.FFRouter` | `starlette` | `starlette.routing.Router` subclass; drop-in replacement |
+| `ffroute.FFAPIRouter` | `fastapi` | `fastapi.routing.APIRouter` subclass; drop-in replacement (preserves `_get_routes_version`, `add_api_route`, `include_router`, HTTP-method decorators) |
 | `ffroute.speedup(app)` | `starlette` | one-liner: rebind an existing app's router class |
 
 `Router` methods:

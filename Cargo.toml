@@ -1,6 +1,6 @@
 [package]
 name = "ffroute"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2021"
 description = "Starlette-compatible URL route matcher as a native Python extension."
 license = "MIT"
